@@ -30,11 +30,12 @@ nav a.on{color:#fff;background:var(--ac);font-weight:700}
 .bar{height:8px;border-radius:4px;background:var(--bd);overflow:hidden;margin-top:4px}.bar i{display:block;height:100%;background:var(--ac)}
 .hit{background:rgba(37,99,235,.1);border-radius:8px;padding:8px;margin:4px 0}
 .q{text-align:center;font-size:14px;font-weight:600;letter-spacing:1px;padding:12px 8px 14px;color:var(--sub)}.q:before,.q:after{content:'—';margin:0 8px;opacity:.5}
+.f3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:6px;align-items:center;margin:4px 0}.f3 input{padding:6px}
 .pos{color:var(--ok)}.neg{color:var(--bad)}
 </style></head><body><main id="app"></main>
 <nav id="nav"></nav>
 <script>
-const K='localgoal.v1',TABS=[['📊','总览'],['🧾','账目'],['💰','收支'],['🏆','对标'],['🎯','目标']];
+const K='localgoal.v1',TABS=[['📊','总览'],['🧾','账目'],['💰','收支'],['🏆','对标'],['🎯','规划']];
 const AC=['现金存款','理财基金','股票','自住房','投资房产','车辆','公积金/养老','其他'],DC=['房贷','车贷','信用卡','借款','其他'];
 const INV=['现金存款','理财基金','股票','投资房产'];
 // 全国家庭"净资产(含自住房)"分布锚点：[万元, 低于该值的家庭占比%]。
@@ -63,7 +64,7 @@ const yrs=m=>m==null?'超过100年':m==0?'已达成':(m/12).toFixed(1)+' 年';
 function basisVal(c){return S.basis=='net'?c.net:S.basis=='gross'?c.a:c.iv}
 function view(){const c=calc();const el=document.getElementById('app');
  document.getElementById('nav').innerHTML=TABS.map((t,i)=>`<a href="#" data-i="${i}" class="${i==tab?'on':''}"><i>${t[0]}</i>${t[1]}</a>`).join('');
- el.innerHTML='<div class="q">财富是一个人综合能力的最佳体现</div>'+[vHome,vItems,vFlow,vBench,vGoal][tab](c);
+ el.innerHTML='<div class="q">财富是一个人综合能力的最佳体现</div>'+remind()+[vHome,vItems,vFlow,vBench,vPlan][tab](c);
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,b.dataset.p));}
 document.getElementById('nav').onclick=e=>{const a=e.target.closest('a');if(a){e.preventDefault();tab=+a.dataset.i;view();scrollTo(0,0)}};
 function spark(){const s=S.snaps.slice(-24);if(s.length<2)return'<div class="s">至少记录两个月后显示趋势</div>';
@@ -74,6 +75,8 @@ function vHome(c){const p=pct(c.net);
  return`<div class="c"><div class="s">净资产</div><div class="big ${c.net<0?'neg':''}">${w(c.net)}</div>
  <div class="s">${c.net<0?'净资产为负，位于全国多数家庭之后':c.net>=300?'已超过300万档（估算范围上限），更高位置暂无数据':'约超过全国 '+p.toFixed(0)+'% 的家庭（综合推算，非官方）'}</div></div>
  <div class="c g"><div><span class="s">总资产</span><b>${w(c.a)}</b></div><div><span class="s">总负债</span><b>${w(c.d)}</b></div><div><span class="s">负债率</span><b>${c.rate.toFixed(1)}%</b></div></div>
+ <div class="c"><h2>资产构成</h2>${pie(catSum())}<div class="s" style="margin-top:6px">负债 ${w(c.d)}，单列不入饼图</div></div>
+ ${splitCard()}
  <div class="c"><h2>净资产趋势（按月，取月末）</h2>${spark()}${snapList()}</div>
  <div class="c"><h2>备份（数据只存在本机）</h2><div class="s">iOS 长期不用可能清理数据，请定期导出并粘贴保存到备忘录。</div>
  <textarea id="bk" rows="3" placeholder="导出内容显示在这里；导入时粘贴到这里"></textarea>
@@ -118,6 +121,47 @@ function vFlow(){const f=flowSum();
  <div class="s" style="margin-top:8px">${f.inc?'储蓄率 '+(f.bal/f.inc*100).toFixed(1)+'%；年结余约 '+w(f.bal*12/10000):'录入收入和支出后显示储蓄率'}。年度收入（如年终奖）请除以12后填入。</div></div>
  ${f.inc?'<div class="c"><h2>收入来源占比</h2>'+brk('i')+'</div>':''}${f.exp?'<div class="c"><h2>支出构成</h2>'+brk('e')+'</div>':''}
  `+sec('i','收入来源',['工资','奖金/年终','经营','租金','投资收益','其他'])+sec('e','每月支出',['房贷/房租','餐饮','交通','日用','教育','医疗','保险','娱乐','其他'])}
+
+const PAL=['#2563eb','#16a34a','#f59e0b','#dc2626','#8b5cf6','#0891b2','#db2777','#65a30d'];
+const FIXA=['自住房','车辆','公积金/养老'],FIXD=['房贷','车贷'];
+function catSum(){const m={};S.items.filter(x=>x.t=='a').forEach(x=>m[x.c]=(m[x.c]||0)+x.v);return m}
+function pie(m){const e=Object.entries(m).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]),t=e.reduce((a,x)=>a+x[1],0);if(!t)return'<div class="s">暂无资产</div>';
+ let off=25;const arcs=e.map(([k,v],i)=>{const q=v/t*100,r=`<circle cx="21" cy="21" r="15.9155" fill="none" stroke="${PAL[i%8]}" stroke-width="7" stroke-dasharray="${q} ${100-q}" stroke-dashoffset="${off}"/>`;off-=q;return r}).join('');
+ return`<svg viewBox="0 0 42 42" width="170" style="display:block;margin:0 auto 8px"><circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--bd)" stroke-width="7"/>${arcs}</svg>`+e.map(([k,v],i)=>`<div class="row" style="border:0;padding:3px 0"><span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${PAL[i%8]};margin-right:6px"></i>${k}</span><span>${w(v)} · ${(v/t*100).toFixed(1)}%</span></div>`).join('')}
+function splitCard(){let fa=0,fd=0,ia=0,id=0;S.items.forEach(x=>{if(x.t=='a')FIXA.includes(x.c)?fa+=x.v:ia+=x.v;else FIXD.includes(x.c)?fd+=x.v:id+=x.v});
+ const k=(n,v,a,d)=>`<div><span class="s">${n}</span><b class="${v<0?'neg':''}">${w(v)}</b><span class="s">资产${w(a)}−负债${w(d)}</span></div>`;
+ return`<div class="c"><h2>固定 / 投资净资产</h2><div class="f2" style="text-align:center">${k('固定净资产',fa-fd,fa,fd)}${k('投资净资产',ia-id,ia,id)}</div><div class="s" style="margin-top:8px">固定=自住房、车辆、公积金/养老，扣房贷车贷；投资=现金、理财、股票、投资房产等，扣其他负债。</div></div>`}
+function remind(){const n=new Date(),d=n.getDate(),last=new Date(n.getFullYear(),n.getMonth()+1,0).getDate(),u=S.upd?new Date(S.upd):new Date(0);
+ const st=d>=last-2?new Date(n.getFullYear(),n.getMonth(),last-2):d<=3?new Date(n.getFullYear(),n.getMonth(),1):null;
+ if(!st||u>=st)return'';return`<div class="c" style="background:var(--ac);color:#fff"><b>📅 ${d<=3?'月初':'月底'}了，请更新各项余额</b><div class="f2" style="margin-top:8px"><button class="l" data-a="goacc">去更新</button><button class="l" data-a="ok">已核对，无需更新</button></div></div>`}
+const TB=['增收提升','理财管理','健康运动','家庭休息'];
+function tm(){S.time=Object.assign({work:45,sleep:7,daily:3.5,plan:{增收提升:8,理财管理:1,健康运动:5,家庭休息:20,深度专注:10},act:{}},S.time||{});return S.time}
+function vTime(){const T=tm(),free=168-T.work-T.sleep*7-T.daily*7,pl=TB.reduce((a,k)=>a+(+T.plan[k]||0),0),f=flowSum(),rate=f.inc?f.inc/(T.work*52/12):0;
+ const bi=(n,k)=>`<label class="s">${n}<input type="number" step="0.5" data-s="base" data-k="${k}" value="${T[k]}"></label>`;
+ const row=k=>`<div class="f3"><span>${k}</span><input type="number" step="0.5" data-s="plan" data-k="${k}" value="${T.plan[k]??0}"><input type="number" step="0.5" data-s="act" data-k="${k}" value="${T.act[k]??''}" placeholder="—"></div>`;
+ return`<div class="c"><h2>每周时间预算</h2><div class="s">工作日 8:30–17:30 按每周45小时，可在下方修改。</div><div class="g" style="margin-top:8px">${bi('每周工作(时)','work')}${bi('每天睡眠(时)','sleep')}${bi('每天通勤家务(时)','daily')}</div>
+ <div class="row" style="margin-top:8px"><span>每周可自由支配</span><b>${free.toFixed(1)} 小时</b></div><div class="row"><span>已规划 / 机动</span><b class="${free-pl<0?'neg':''}">${pl} / ${(free-pl).toFixed(1)} 小时</b></div>
+ <div class="row"><span>工作时薪（按月收入）</span><b>${rate?rate.toFixed(0)+' 元/时':'暂无'}</b></div></div>
+ <div class="c"><h2>时间分配与周复盘</h2><div class="f3 s"><span>项目（时/周）</span><span>计划</span><span>本周实际</span></div>${TB.map(row).join('')}${row('深度专注')}
+ <div class="s">深度专注指无打扰的专注小时，包含工作内。每周末填实际值并保存。</div><button data-a="savetime" style="margin-top:8px">保存</button>
+ ${TB.concat('深度专注').filter(k=>T.act[k]!=null).map(k=>{const a=T.act[k],pn=+T.plan[k]||0;return`<div class="row" style="border:0;padding:4px 0"><span>${k}</span><span class="${a>=pn?'pos':'neg'}">${a} / ${pn} 小时</span></div>`}).join('')}</div>
+ <div class="c"><h2>财务例行清单</h2><div class="row"><span>每月底/月初</span><span>更新余额、对账（约15分钟）</span></div><div class="row"><span>每季度</span><span>看评估，调整目标和计划</span></div><div class="row"><span>每年</span><span>检查保险、负债和投资配置</span></div></div>`}
+function vEval(c){const f=flowSum(),T=tm(),cash=S.items.filter(x=>x.t=='a'&&x.c=='现金存款').reduce((a,x)=>a+x.v,0)*10000;
+ const top=Math.max(0,...Object.values(catSum())),sn=S.snaps,gr=sn.length>1&&sn[sn.length-2].nw>0?(sn[sn.length-1].nw/sn[sn.length-2].nw-1)*100:null;
+ const mo=f.exp?cash/f.exp:null,pay=f.inc?S.flow.filter(x=>x.t=='e'&&x.c=='房贷/房租').reduce((a,x)=>a+x.v,0)/f.inc*100:null,sv=f.inc?f.bal/f.inc*100:null,cc=c.a?top/c.a*100:null;
+ const L=(v,r,y,hi)=>v==null?null:hi?(v>r?0:v>y?1:2):(v<r?0:v<y?1:2);
+ const tg=mo!=null&&mo<3?3:6;
+ const R=[['应急金（现金类）',mo==null?null:mo.toFixed(1)+' 个月支出',L(mo,3,6,0),mo!=null&&mo<6?`现金类再存约 ${Math.max(0,Math.round(f.exp*tg-cash)).toLocaleString()} 元，可达 ${tg} 个月`:'充足'],
+ ['负债率',c.a?c.rate.toFixed(1)+'%':null,c.a?L(c.rate,70,50,1):null,c.rate>50?'优先降低高息负债，暂缓新增借款':'处于健康区间'],
+ ['月供/房租占收入',pay==null?null:pay.toFixed(0)+'%',L(pay,50,35,1),pay>35?'占比偏高，避免新增长期债务':'压力可控'],
+ ['储蓄率',sv==null?null:sv.toFixed(0)+'%',L(sv,10,20,0),sv!=null&&sv<20?'增收或压缩可变支出，把结余固定转入投资':'保持'],
+ ['资产集中度',cc==null?null:cc.toFixed(0)+'%',L(cc,80,60,1),cc>60?'单一类别过高，逐步增加流动资产比重':'分布较均衡'],
+ ['净资产月增速',gr==null?null:gr.toFixed(1)+'%',gr==null?null:L(gr,0,1,0),gr!=null&&gr<1?'增长偏慢或下降，核对收支和资产变动':'增长正常']];
+ const ok=R.filter(r=>r[2]!=null),score=ok.length?Math.round(ok.reduce((a,r)=>a+r[2],0)/(ok.length*2)*100):null,red=ok.filter(r=>r[2]==0).length;
+ return`<div class="c"><h2>财务健康评估</h2><div class="big">${score==null?'暂无':score+' 分'}</div>${R.map(r=>`<div class="row" style="align-items:flex-start"><div>${r[2]==null?'⚪':['🔴','🟡','🟢'][r[2]]} ${r[0]}<div class="s">${r[3]}</div></div><b>${r[1]||'暂无数据'}</b></div>`).join('')}
+ ${red?`<div class="s" style="margin-top:8px">有 ${red} 项红灯：优先保证“增收提升”和“理财管理”的时间（当前计划 ${T.plan.增收提升}+${T.plan.理财管理} 小时/周）。</div>`:''}
+ <div class="s">阈值为常见经验线，不构成投资建议；储蓄率含不可自由支配的公积金收入，可能偏高。</div></div>`}
+function vPlan(c){return vGoal(c)+vEval(c)+vTime(c)}
 function vGoal(c){const g=S.goal,s=basisVal(c),fl=flowSum();
  return`<div class="c"><h2>目标规划（以${BM[S.basis].n}为起点）</h2><div class="f2">
  <label class="s">目标（万元）<input id="gt" type="number" inputmode="decimal" value="${g.target}"></label>
@@ -132,11 +176,15 @@ function act(a,p){const c=calc();
   if(!n||isNaN(v)||v<0)return alert('请填写名称和有效金额');S.flow.push({t:p,c:document.getElementById('fc'+p).value,n,v})}
  else if(a=='delf'){if(!confirm('删除这一项？'))return;S.flow.splice(+p,1)}
  else if(a=='usebal'){S.goal.save=Math.max(0,+(flowSum().bal/10000).toFixed(2))}
+ else if(a=='goacc')tab=1;
+ else if(a=='ok')S.upd=new Date().toISOString();
+ else if(a=='savetime'){const T=tm();document.querySelectorAll('[data-k]').forEach(e=>{const v=parseFloat(e.value),k=e.dataset.k,t=e.dataset.s;if(t=='base'){if(!isNaN(v))T[k]=v}else if(t=='plan')T.plan[k]=isNaN(v)?0:v;else if(e.value!=='')T.act[k]=v})}
  else if(a=='b')S.basis=p;
  else if(a=='goal'){S.goal={target:parseFloat(document.getElementById('gt').value)||0,save:parseFloat(document.getElementById('gs').value)||0}}
  else if(a=='snap'){const d=new Date().toISOString().slice(0,7);S.snaps=S.snaps.filter(x=>x.d!=d);S.snaps.push({d,nw:c.net});S.snaps.sort((x,y)=>x.d<y.d?-1:1)}
  else if(a=='exp'){const t=JSON.stringify(S),b=document.getElementById('bk');b.value=t;b.select();try{navigator.clipboard.writeText(t)}catch(e){};return}
  else if(a=='imp'){try{const o=JSON.parse(document.getElementById('bk').value);if(!Array.isArray(o.items))throw 0;S=Object.assign(def(),o)}catch(e){return alert('内容无效')}}
+ if(a=='add'||a=='del')S.upd=new Date().toISOString();
  save();view()}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 save();view();
