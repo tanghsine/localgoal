@@ -136,12 +136,13 @@ function remind(){const n=new Date(),d=n.getDate(),last=new Date(n.getFullYear()
  if(!st||u>=st)return'';return`<div class="c" style="background:var(--ac);color:#fff"><b>📅 ${d<=3?'月初':'月底'}了，请更新各项余额</b><div class="f2" style="margin-top:8px"><button class="l" data-a="goacc">去更新</button><button class="l" data-a="ok">已核对，无需更新</button></div></div>`}
 function sd(){S.side=Object.assign({list:['YouTube','抖音 / TikTok','小红书','Twitter (X)','微信公众号 + 离线软件包','开发并售卖 App'].map(n=>({n}))},S.side||{});
  S.side.list.forEach(x=>{x.mo=x.mo||{};if(x.act!=null){if(x.act)x.mo[curM()]=x.act;delete x.act}x.inc=x.inc||0;x.base=x.base||0;x.bio=x.bio||''});return S.side}
+function saveSide(){const D=sd();document.querySelectorAll('[data-i]').forEach(e=>{const x=D.list[+e.dataset.i],k=e.dataset.k;if(!x)return;if(k=='bio')x.bio=e.value;else if(k=='act')x.mo[curM()]=parseFloat(e.value)||0;else x[k]=parseFloat(e.value)||0})}
 function vSide(c){const D=sd(),f=flowSum(),g=S.goal,L=D.list,b=basisVal(c);
  const cur=x=>x.mo[curM()]||0,tot=x=>x.base+Object.values(x.mo).reduce((p,q)=>p+q,0);
  const I=L.reduce((a,x)=>a+x.inc,0),A=L.reduce((a,x)=>a+cur(x),0),T=L.reduce((a,x)=>a+tot(x),0);
  const m0=months(b,g.target,g.save,4),m1=months(b,g.target,g.save+I/10000,4);
  const inp=(i,k,n,v)=>`<label class="s">${n}<input type="number" step="1" data-i="${i}" data-k="${k}" value="${v}"></label>`;
- const card=(x,i)=>`<div style="padding:12px 0;border-bottom:1px solid var(--bd)"><div class="row" style="border:0;padding:0"><b>${esc(x.n)}</b><button class="x" data-a="delside" data-p="${i}">删</button></div>
+ const card=(x,i)=>`<div style="padding:12px 0;border-bottom:1px solid var(--bd)"><div class="row" style="border:0;padding:0"><b>${esc(x.n)}</b><span style="white-space:nowrap"><button class="x" style="color:var(--ac);padding:6px 12px;font-size:18px" data-a="mvside" data-p="${i}:-1">▲</button><button class="x" style="color:var(--ac);padding:6px 12px;font-size:18px" data-a="mvside" data-p="${i}:1">▼</button><button class="x" data-a="delside" data-p="${i}">删</button></span></div>
  <textarea data-i="${i}" data-k="bio" rows="3" placeholder="简介：准备在这个平台做哪些内容、更新频率、怎么变现……" style="margin:6px 0">${esc(x.bio)}</textarea>
  <div class="f2">${inp(i,'inc','预期稳定月收入(元)',x.inc)}${inp(i,'act','本月实际收入(元)',cur(x))}</div>
  <div class="f2" style="margin-top:6px">${inp(i,'base','此前已累计收入(元)',x.base)}<div><span class="s">当前总收入</span><b style="display:block;font-size:18px;margin-top:6px">${yuan(tot(x))}</b></div></div>
@@ -184,9 +185,10 @@ function act(a,p){const c=calc();
  else if(a=='usebal'){S.goal.save=Math.max(0,+(flowSum().bal/10000).toFixed(2))}
  else if(a=='goacc')tab=1;
  else if(a=='ok')S.upd=new Date().toISOString();
- else if(a=='saveside'){const D=sd();document.querySelectorAll('[data-i]').forEach(e=>{const x=D.list[+e.dataset.i],k=e.dataset.k;if(k=='bio')x.bio=e.value;else if(k=='act')x.mo[curM()]=parseFloat(e.value)||0;else x[k]=parseFloat(e.value)||0})}
- else if(a=='addside'){const n=document.getElementById('sn').value.trim();if(!n)return alert('请填写项目名称');sd().list.push({n,inc:0,base:0,mo:{},bio:''})}
- else if(a=='delside'){if(!confirm('删除这个项目？'))return;sd().list.splice(+p,1)}
+ else if(a=='saveside')saveSide();
+ else if(a=='mvside'){const[i,d]=p.split(':').map(Number),L=sd().list,j=i+d;saveSide();if(j>=0&&j<L.length)[L[i],L[j]]=[L[j],L[i]]}
+ else if(a=='addside'){saveSide();const n=document.getElementById('sn').value.trim();if(!n)return alert('请填写项目名称');sd().list.push({n,inc:0,base:0,mo:{},bio:''})}
+ else if(a=='delside'){if(!confirm('删除这个项目？'))return;saveSide();sd().list.splice(+p,1)}
  else if(a=='b')S.basis=p;
  else if(a=='goal'){S.goal={target:parseFloat(document.getElementById('gt').value)||0,save:parseFloat(document.getElementById('gs').value)||0}}
  else if(a=='snap'){const d=new Date().toISOString().slice(0,7);S.snaps=S.snaps.filter(x=>x.d!=d);S.snaps.push({d,nw:c.net});S.snaps.sort((x,y)=>x.d<y.d?-1:1)}
