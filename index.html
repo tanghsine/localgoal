@@ -134,19 +134,22 @@ function splitCard(){let fa=0,fd=0,ia=0,id=0;S.items.forEach(x=>{if(x.t=='a')FIX
 function remind(){const n=new Date(),d=n.getDate(),last=new Date(n.getFullYear(),n.getMonth()+1,0).getDate(),u=S.upd?new Date(S.upd):new Date(0);
  const st=d>=last-2?new Date(n.getFullYear(),n.getMonth(),last-2):d<=3?new Date(n.getFullYear(),n.getMonth(),1):null;
  if(!st||u>=st)return'';return`<div class="c" style="background:var(--ac);color:#fff"><b>📅 ${d<=3?'月初':'月底'}了，请更新各项余额</b><div class="f2" style="margin-top:8px"><button class="l" data-a="goacc">去更新</button><button class="l" data-a="ok">已核对，无需更新</button></div></div>`}
-const TB=['增收提升','理财管理','健康运动','家庭休息'];
-function tm(){S.time=Object.assign({work:45,sleep:7,daily:3.5,plan:{增收提升:8,理财管理:1,健康运动:5,家庭休息:20,深度专注:10},act:{}},S.time||{});return S.time}
-function vTime(){const T=tm(),free=168-T.work-T.sleep*7-T.daily*7,pl=TB.reduce((a,k)=>a+(+T.plan[k]||0),0),f=flowSum(),rate=f.inc?f.inc/(T.work*52/12):0;
- const bi=(n,k)=>`<label class="s">${n}<input type="number" step="0.5" data-s="base" data-k="${k}" value="${T[k]}"></label>`;
- const row=k=>`<div class="f3"><span>${k}</span><input type="number" step="0.5" data-s="plan" data-k="${k}" value="${T.plan[k]??0}"><input type="number" step="0.5" data-s="act" data-k="${k}" value="${T.act[k]??''}" placeholder="—"></div>`;
- return`<div class="c"><h2>每周时间预算</h2><div class="s">工作日 8:30–17:30 按每周45小时，可在下方修改。</div><div class="g" style="margin-top:8px">${bi('每周工作(时)','work')}${bi('每天睡眠(时)','sleep')}${bi('每天通勤家务(时)','daily')}</div>
- <div class="row" style="margin-top:8px"><span>每周可自由支配</span><b>${free.toFixed(1)} 小时</b></div><div class="row"><span>已规划 / 机动</span><b class="${free-pl<0?'neg':''}">${pl} / ${(free-pl).toFixed(1)} 小时</b></div>
- <div class="row"><span>工作时薪（按月收入）</span><b>${rate?rate.toFixed(0)+' 元/时':'暂无'}</b></div></div>
- <div class="c"><h2>时间分配与周复盘</h2><div class="f3 s"><span>项目（时/周）</span><span>计划</span><span>本周实际</span></div>${TB.map(row).join('')}${row('深度专注')}
- <div class="s">深度专注指无打扰的专注小时，包含工作内。每周末填实际值并保存。</div><button data-a="savetime" style="margin-top:8px">保存</button>
- ${TB.concat('深度专注').filter(k=>T.act[k]!=null).map(k=>{const a=T.act[k],pn=+T.plan[k]||0;return`<div class="row" style="border:0;padding:4px 0"><span>${k}</span><span class="${a>=pn?'pos':'neg'}">${a} / ${pn} 小时</span></div>`}).join('')}</div>
- <div class="c"><h2>财务例行清单</h2><div class="row"><span>每月底/月初</span><span>更新余额、对账（约15分钟）</span></div><div class="row"><span>每季度</span><span>看评估，调整目标和计划</span></div><div class="row"><span>每年</span><span>检查保险、负债和投资配置</span></div></div>`}
-function vEval(c){const f=flowSum(),T=tm(),cash=S.items.filter(x=>x.t=='a'&&x.c=='现金存款').reduce((a,x)=>a+x.v,0)*10000;
+function sd(){S.side=Object.assign({cap:10,list:['开发并售卖 App','公众号 + 离线软件包','小红书自媒体','抖音 / TikTok','Twitter (X)'].map(n=>({n,h:0,inc:0,ramp:6,act:0}))},S.side||{});return S.side}
+function vSide(c){const D=sd(),f=flowSum(),g=S.goal,L=D.list,H=L.reduce((a,x)=>a+x.h,0),I=L.reduce((a,x)=>a+x.inc,0),A=L.reduce((a,x)=>a+x.act,0),Y=L.reduce((a,x)=>a+x.inc*Math.max(0,12-x.ramp),0);
+ const rate=H&&I?I/(H*52/12):0,b=basisVal(c),m0=months(b,g.target,g.save,4),m1=months(b,g.target,g.save+I/10000,4);
+ const inp=(i,k,n,v,st)=>`<label class="s">${n}<input type="number" step="${st||1}" data-i="${i}" data-k="${k}" value="${v}"></label>`;
+ const card=(x,i)=>`<div style="padding:10px 0;border-bottom:1px solid var(--bd)"><div class="row" style="border:0;padding:0"><b>${esc(x.n)}</b><button class="x" data-a="delside" data-p="${i}">删</button></div>
+ <div class="f2">${inp(i,'h','每周投入(小时)',x.h,0.5)}${inp(i,'inc','预期稳定月收入(元)',x.inc)}${inp(i,'ramp','几个月后见效',x.ramp)}${inp(i,'act','本月实际收入(元)',x.act)}</div>
+ ${x.inc?`<div class="bar"><i style="width:${Math.min(100,x.act/x.inc*100)}%"></i></div><div class="s">本月达成 ${(x.act/x.inc*100).toFixed(0)}%${x.h?' · 预期时薪约 '+(x.inc/(x.h*52/12)).toFixed(0)+' 元':''}</div>`:''}</div>`;
+ return`<div class="c"><h2>副业增值项目</h2><div class="s">工作日之外的时间，分配给能增值的项目。填完点最下面的“保存”。</div>
+ <div class="g" style="margin-top:8px"><div><span class="s">每周可投入(时)</span><input id="cap" type="number" step="0.5" value="${D.cap}"></div><div><span class="s">已分配</span><b>${H} 时</b></div><div><span class="s">机动</span><b class="${D.cap-H<0?'neg':''}">${(D.cap-H).toFixed(1)} 时</b></div></div>
+ <div class="row" style="margin-top:8px"><span>预期稳定月收入合计</span><b class="pos">${yuan(I)}</b></div><div class="row"><span>首年预计收入（扣除见效期）</span><b>${yuan(Y)}</b></div>
+ <div class="row"><span>本月实际收入合计</span><b>${yuan(A)}</b></div><div class="row"><span>预期综合时薪</span><b>${rate?rate.toFixed(0)+' 元/时':'暂无'}</b></div></div>
+ ${I>0?`<div class="c"><h2>对财务的影响</h2><div class="row"><span>月结余</span><b>${yuan(f.bal)} → ${yuan(f.bal+I)}</b></div>${f.inc?`<div class="row"><span>储蓄率</span><b>${(f.bal/f.inc*100).toFixed(0)}% → ${((f.bal+I)/(f.inc+I)*100).toFixed(0)}%</b></div>`:''}<div class="row"><span>达成目标（4%收益）</span><b>${yrs(m0)} → ${yrs(m1)}</b></div><div class="s">按副业收入全部转为储蓄、已达稳定期计算，未计税费、平台抽成和前期成本。</div></div>`:''}
+ <div class="c">${L.map(card).join('')||'<div class="s">暂无项目</div>'}
+ <div class="f2" style="margin-top:10px"><input id="sn" placeholder="新增项目名称"><button class="l" data-a="addside">添加</button></div><button data-a="saveside" style="margin-top:10px">保存</button>
+ <div class="s" style="margin-top:8px">预期收入是你自己的估计，自媒体和软件销售收入波动大，建议先保守填写，每月用实际收入回头校准。</div></div>`}
+function vEval(c){const f=flowSum(),cash=S.items.filter(x=>x.t=='a'&&x.c=='现金存款').reduce((a,x)=>a+x.v,0)*10000;
  const top=Math.max(0,...Object.values(catSum())),sn=S.snaps,gr=sn.length>1&&sn[sn.length-2].nw>0?(sn[sn.length-1].nw/sn[sn.length-2].nw-1)*100:null;
  const mo=f.exp?cash/f.exp:null,pay=f.inc?S.flow.filter(x=>x.t=='e'&&x.c=='房贷/房租').reduce((a,x)=>a+x.v,0)/f.inc*100:null,sv=f.inc?f.bal/f.inc*100:null,cc=c.a?top/c.a*100:null;
  const L=(v,r,y,hi)=>v==null?null:hi?(v>r?0:v>y?1:2):(v<r?0:v<y?1:2);
@@ -159,9 +162,9 @@ function vEval(c){const f=flowSum(),T=tm(),cash=S.items.filter(x=>x.t=='a'&&x.c=
  ['净资产月增速',gr==null?null:gr.toFixed(1)+'%',gr==null?null:L(gr,0,1,0),gr!=null&&gr<1?'增长偏慢或下降，核对收支和资产变动':'增长正常']];
  const ok=R.filter(r=>r[2]!=null),score=ok.length?Math.round(ok.reduce((a,r)=>a+r[2],0)/(ok.length*2)*100):null,red=ok.filter(r=>r[2]==0).length;
  return`<div class="c"><h2>财务健康评估</h2><div class="big">${score==null?'暂无':score+' 分'}</div>${R.map(r=>`<div class="row" style="align-items:flex-start"><div>${r[2]==null?'⚪':['🔴','🟡','🟢'][r[2]]} ${r[0]}<div class="s">${r[3]}</div></div><b>${r[1]||'暂无数据'}</b></div>`).join('')}
- ${red?`<div class="s" style="margin-top:8px">有 ${red} 项红灯：优先保证“增收提升”和“理财管理”的时间（当前计划 ${T.plan.增收提升}+${T.plan.理财管理} 小时/周）。</div>`:''}
+ ${red?`<div class="s" style="margin-top:8px">有 ${red} 项红灯：增收是改善的重点，可在下方“副业增值项目”里规划投入。</div>`:''}
  <div class="s">阈值为常见经验线，不构成投资建议；储蓄率含不可自由支配的公积金收入，可能偏高。</div></div>`}
-function vPlan(c){return vGoal(c)+vEval(c)+vTime(c)}
+function vPlan(c){return vGoal(c)+vEval(c)+vSide(c)}
 function vGoal(c){const g=S.goal,s=basisVal(c),fl=flowSum();
  return`<div class="c"><h2>目标规划（以${BM[S.basis].n}为起点）</h2><div class="f2">
  <label class="s">目标（万元）<input id="gt" type="number" inputmode="decimal" value="${g.target}"></label>
@@ -178,7 +181,9 @@ function act(a,p){const c=calc();
  else if(a=='usebal'){S.goal.save=Math.max(0,+(flowSum().bal/10000).toFixed(2))}
  else if(a=='goacc')tab=1;
  else if(a=='ok')S.upd=new Date().toISOString();
- else if(a=='savetime'){const T=tm();document.querySelectorAll('[data-k]').forEach(e=>{const v=parseFloat(e.value),k=e.dataset.k,t=e.dataset.s;if(t=='base'){if(!isNaN(v))T[k]=v}else if(t=='plan')T.plan[k]=isNaN(v)?0:v;else if(e.value!=='')T.act[k]=v})}
+ else if(a=='saveside'){const D=sd();document.querySelectorAll('[data-i]').forEach(e=>{D.list[+e.dataset.i][e.dataset.k]=parseFloat(e.value)||0});D.cap=parseFloat(document.getElementById('cap').value)||0}
+ else if(a=='addside'){const n=document.getElementById('sn').value.trim();if(!n)return alert('请填写项目名称');sd().list.push({n,h:0,inc:0,ramp:6,act:0})}
+ else if(a=='delside'){if(!confirm('删除这个项目？'))return;sd().list.splice(+p,1)}
  else if(a=='b')S.basis=p;
  else if(a=='goal'){S.goal={target:parseFloat(document.getElementById('gt').value)||0,save:parseFloat(document.getElementById('gs').value)||0}}
  else if(a=='snap'){const d=new Date().toISOString().slice(0,7);S.snaps=S.snaps.filter(x=>x.d!=d);S.snaps.push({d,nw:c.net});S.snaps.sort((x,y)=>x.d<y.d?-1:1)}
