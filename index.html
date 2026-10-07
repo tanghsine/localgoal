@@ -3,10 +3,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="家庭财务">
+<meta name="apple-mobile-web-app-title" content="财富罗盘">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232563eb'/%3E%3Ctext x='50' y='68' font-size='56' text-anchor='middle' fill='white'%3E%C2%A5%3C/text%3E%3C/svg%3E">
-<title>家庭财务</title>
+<title>财富罗盘</title>
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--tx:#111;--sub:#6b7280;--ac:#2563eb;--ok:#16a34a;--bad:#dc2626;--bd:#e5e7eb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
 :root:not([data-theme=light]){color-scheme:light dark}
@@ -32,10 +33,16 @@ nav a.on{color:#fff;background:var(--ac);font-weight:700}
 .q{text-align:center;font-size:14px;font-weight:600;letter-spacing:1px;padding:12px 8px 14px;color:var(--sub)}.q:before,.q:after{content:'—';margin:0 8px;opacity:.5}
 .f3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:6px;align-items:center;margin:4px 0}.f3 input{padding:6px}
 .pos{color:var(--ok)}.neg{color:var(--bad)}
+details.c summary{font-weight:700;font-size:15px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.c summary::-webkit-details-marker{display:none}
+details.c summary::after{content:'＋';color:var(--sub);font-size:18px;font-weight:400}
+details.c[open]>summary::after{content:'－'}
+details.c .inner{margin-top:10px}
+.fold{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px}
 </style></head><body><main id="app"></main>
 <nav id="nav"></nav>
 <script>
-const K='localgoal.v1',TABS=[['📊','总览'],['🧾','账目'],['💰','收支'],['🏆','对标'],['🎯','规划']];
+const K='localgoal.v1',TABS=[['📊','总览'],['🧾','账目'],['💰','收支'],['🎯','规划']];
 const AC=['现金存款','理财基金','股票','自住房','投资房产','车辆','公积金/养老','其他'],DC=['房贷','车贷','信用卡','借款','其他'];
 const INV=['现金存款','理财基金','股票','投资房产'];
 // 全国家庭"净资产(含自住房)"分布锚点：[万元, 低于该值的家庭占比%]。
@@ -64,7 +71,7 @@ const yrs=m=>m==null?'超过100年':m==0?'已达成':(m/12).toFixed(1)+' 年';
 function basisVal(c){return S.basis=='net'?c.net:S.basis=='gross'?c.a:c.iv}
 function view(){const c=calc();const el=document.getElementById('app');
  document.getElementById('nav').innerHTML=TABS.map((t,i)=>`<a href="#" data-i="${i}" class="${i==tab?'on':''}"><i>${t[0]}</i>${t[1]}</a>`).join('');
- el.innerHTML='<div class="q">财富是一个人综合能力的最佳体现</div>'+remind()+[vHome,vItems,vFlow,vBench,vPlan][tab](c);
+ el.innerHTML='<div class="q">财富是一个人综合能力的最佳体现</div>'+remind()+[vHome,vItems,vFlow,vPlan][tab](c);
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,b.dataset.p));}
 document.getElementById('nav').onclick=e=>{const a=e.target.closest('a');if(a){e.preventDefault();tab=+a.dataset.i;view();scrollTo(0,0)}};
 function spark(){const s=S.snaps.slice(-24);if(s.length<2)return'<div class="s">至少记录两个月后显示趋势</div>';
@@ -78,6 +85,7 @@ function vHome(c){const p=pct(c.net);
  <div class="c"><h2>资产构成</h2>${pie(catSum())}<div class="s" style="margin-top:6px">负债 ${w(c.d)}，单列不入饼图</div></div>
  ${splitCard()}
  <div class="c"><h2>净资产趋势（按月，取月末）</h2>${spark()}${snapList()}</div>
+ ${benchFold(c)}
  <div class="c"><h2>备份（数据只存在本机）</h2><div class="s">iOS 长期不用可能清理数据，请定期导出并粘贴保存到备忘录。</div>
  <textarea id="bk" rows="3" placeholder="导出内容显示在这里；导入时粘贴到这里"></textarea>
  <div class="f2" style="margin-top:8px"><button class="l" data-a="exp">导出</button><button class="l" data-a="imp">导入</button></div></div>`}
@@ -107,6 +115,8 @@ function vBench(c){const m=BM[S.basis],bv=basisVal(c),pc=x=>x.toFixed(x<1?2:1)+'
  <div class="c"><h2>国际参考：美元百万富翁人数（成年个人）</h2>
  <div class="row"><span>中国大陆</span><b>约 630 万</b></div><div class="row"><span>法国</span><b>约 280 万</b></div>
  <div class="s">来源：瑞银《全球财富报告2025》（2024年底数据）。口径是个人而非家庭，1百万美元约合人民币700万元上下，仅作量级参考。</div></div>`}
+// 对标模块：只在「总览」页底部以折叠形式展示，点击展开
+function benchFold(c){return `<details class="c"><summary>📍 国内家庭对标（展开查看）</summary><div class="inner">${vBench(c).replace(/<div class="c">/g,'<div class="fold">')}</div></details>`}
 function snapList(){return S.snaps.slice(-24).reverse().map(x=>`<div class="row"><span class="s">${x.d}${x.d==curM()?'（本月，进行中）':''}</span><b>${w(x.nw)}</b></div>`).join('')}
 function flowSum(){let inc=0,exp=0;S.flow.forEach(x=>x.t=='i'?inc+=x.v:exp+=x.v);return{inc,exp,bal:inc-exp,n:S.flow.length}}
 const yuan=v=>Math.round(v).toLocaleString('zh-CN')+'元';
@@ -168,7 +178,9 @@ function vEval(c){const f=flowSum(),cash=S.items.filter(x=>x.t=='a'&&x.c=='现�
  return`<div class="c"><h2>财务健康评估</h2><div class="big">${score==null?'暂无':score+' 分'}</div>${R.map(r=>`<div class="row" style="align-items:flex-start"><div>${r[2]==null?'⚪':['🔴','🟡','🟢'][r[2]]} ${r[0]}<div class="s">${r[3]}</div></div><b>${r[1]||'暂无数据'}</b></div>`).join('')}
  ${red?`<div class="s" style="margin-top:8px">有 ${red} 项红灯：增收是改善的重点，可在下方“副业增值项目”里规划投入。</div>`:''}
  <div class="s">阈值为常见经验线，不构成投资建议；储蓄率含不可自由支配的公积金收入，可能偏高。</div></div>`}
-function vPlan(c){return vGoal(c)+vEval(c)+vSide(c)}
+function vPlan(c){return vGoal(c)
++`<details class="c"><summary>🩺 财务健康评估（展开查看）</summary><div class="inner">${vEval(c).replace(/<div class="c">/g,'<div class="fold">')}</div></details>`
++`<details class="c"><summary>🚀 副业增值项目（展开查看）</summary><div class="inner">${vSide(c).replace(/<div class="c">/g,'<div class="fold">')}</div></details>`}
 function vGoal(c){const g=S.goal,s=basisVal(c),fl=flowSum();
  return`<div class="c"><h2>目标规划（以${BM[S.basis].n}为起点）</h2><div class="f2">
  <label class="s">目标（万元）<input id="gt" type="number" inputmode="decimal" value="${g.target}"></label>
