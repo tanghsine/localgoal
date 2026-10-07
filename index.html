@@ -39,8 +39,11 @@ details.c summary::after{content:'＋';color:var(--sub);font-size:18px;font-weig
 details.c[open]>summary::after{content:'－'}
 details.c .inner{margin-top:10px}
 .fold{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(16px);background:#111;color:#fff;padding:10px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;z-index:99;max-width:82vw;text-align:center}
+#toast.on{opacity:.96;transform:translateX(-50%) translateY(0)}
 </style></head><body><main id="app"></main>
 <nav id="nav"></nav>
+<div id="toast"></div>
 <script>
 const K='localgoal.v1',TABS=[['📊','总览'],['🧾','账目'],['💰','收支'],['🎯','规划']];
 const AC=['现金存款','理财基金','股票','自住房','投资房产','车辆','公积金/养老','其他'],DC=['房贷','车贷','信用卡','借款','其他'];
@@ -58,6 +61,7 @@ function normSnaps(a){const m={};a.slice().sort((x,y)=>x.d<y.d?-1:1).forEach(x=>
 function autoSnap(){S.snaps=normSnaps(S.snaps);if(!S.items.length)return;const d=curM();
  S.snaps=S.snaps.filter(x=>x.d!=d);S.snaps.push({d,nw:calc().net})}
 function save(){autoSnap();try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
+const toast=t=>{const e=document.getElementById('toast');if(!e)return alert(t);e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2400)};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const w=v=>Math.abs(v)>=10000?(v/10000).toFixed(2)+'亿':v.toFixed(2).replace(/\.?0+$/,'')+'万';
 function calc(){let a=0,d=0,iv=0;S.items.forEach(i=>{if(i.t=='a'){a+=i.v;if(INV.includes(i.c))iv+=i.v}else d+=i.v});return{a,d,net:a-d,iv,rate:a?d/a*100:0}}
@@ -87,8 +91,9 @@ function vHome(c){const p=pct(c.net);
  <div class="c"><h2>净资产趋势（按月，取月末）</h2>${spark()}${snapList()}</div>
  ${benchFold(c)}
  <div class="c"><h2>备份（数据只存在本机）</h2><div class="s">iOS 长期不用可能清理数据，请定期导出并粘贴保存到备忘录。</div>
- <textarea id="bk" rows="3" placeholder="导出内容显示在这里；导入时粘贴到这里"></textarea>
- <div class="f2" style="margin-top:8px"><button class="l" data-a="exp">导出</button><button class="l" data-a="imp">导入</button></div></div>`}
+ <div class="s" style="margin-top:6px">备份文本可直接粘贴到备忘录保存。建议每月备份一次，换手机或清理数据前先备份。</div>
+ <textarea id="bk" rows="3" placeholder="点「复制备份文本」生成；导入时把备忘录里的文本粘贴到这里"></textarea>
+ <div class="f2" style="margin-top:8px"><button class="l" data-a="exp">复制备份文本</button><button class="l" data-a="imp">从文本导入</button></div></div>`}
 function vItems(){const sec=(t,n,cats)=>{const L=S.items.map((x,i)=>[x,i]).filter(([x])=>x.t==t);
  return`<div class="c"><h2>${n}</h2>${L.map(([x,i])=>`<div class="row"><div>${esc(x.n)}<div class="s">${x.c}</div></div><div>${w(x.v)}<button class="x" data-a="del" data-p="${i}">删</button></div></div>`).join('')||'<div class="s">暂无</div>'}
  <div class="f" style="margin-top:10px"><div class="f2"><select id="c${t}">${cats.map(x=>`<option>${x}</option>`).join('')}</select><input id="n${t}" placeholder="名称"></div>
@@ -204,8 +209,8 @@ function act(a,p){const c=calc();
  else if(a=='b')S.basis=p;
  else if(a=='goal'){S.goal={target:parseFloat(document.getElementById('gt').value)||0,save:parseFloat(document.getElementById('gs').value)||0}}
  else if(a=='snap'){const d=new Date().toISOString().slice(0,7);S.snaps=S.snaps.filter(x=>x.d!=d);S.snaps.push({d,nw:c.net});S.snaps.sort((x,y)=>x.d<y.d?-1:1)}
- else if(a=='exp'){const t=JSON.stringify(S),b=document.getElementById('bk');b.value=t;b.select();try{navigator.clipboard.writeText(t)}catch(e){};return}
- else if(a=='imp'){try{const o=JSON.parse(document.getElementById('bk').value);if(!Array.isArray(o.items))throw 0;S=Object.assign(def(),o)}catch(e){return alert('内容无效')}}
+ else if(a=='exp'){const t=JSON.stringify({app:'wealth-compass',name:'财富罗盘',version:2,exportedAt:new Date().toISOString(),data:S}),b=document.getElementById('bk');b.value=t;b.select();const ok=()=>toast('已复制，去备忘录粘贴保存'),no=()=>toast('已填入文本框，长按全选复制');try{const p=navigator.clipboard&&navigator.clipboard.writeText(t);if(p&&p.then)p.then(ok,no);else no()}catch(e){no()}return}
+ else if(a=='imp'){try{const o=JSON.parse(document.getElementById('bk').value);let d=null;if(o&&o.data&&Array.isArray(o.data.items))d=o.data;else if(o&&Array.isArray(o.items))d=o;if(!d)throw 0;const n1=d.items.filter(x=>x.t=='a').length,n2=(d.flow||[]).length;if(!confirm(`将用备份覆盖当前数据：资产 ${n1} 项 / 收支 ${n2} 项，继续吗？`))return;S=Object.assign(def(),d)}catch(e){return alert('内容无效：请粘贴完整的备份文本')}}
  if(a=='add'||a=='del')S.upd=new Date().toISOString();
  save();view()}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
